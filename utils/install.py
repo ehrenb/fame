@@ -4,6 +4,7 @@ import errno
 from urllib import quote_plus
 from urlparse import urljoin
 from subprocess import call
+import time
 
 sys.path.append(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")))
 
@@ -49,23 +50,19 @@ def test_mongodb_connection(db):
 def define_mongo_connection(context):
     from pymongo import MongoClient
 
-    context['mongo_host'] = user_input("MongoDB host", "localhost")
-    context['mongo_port'] = int(user_input("MongoDB port", "27017"))
-    context['mongo_db'] = user_input("MongoDB database", "fame")
+    context['mongo_host'] = os.environ.get('MONGODB_HOST', None) or user_input("MongoDB host", "localhost")
+    context['mongo_port'] = int(os.environ.get('MONGODB_PORT', None)) or user_input("MongoDB port", "27017")
+    context['mongo_db'] = os.environ.get('MONGODB_DATABASE', None) or user_input("MongoDB database", "fame")
 
-    try:
-        mongo = MongoClient(context['mongo_host'], context['mongo_port'], serverSelectionTimeoutMS=10000)
-        mongo.server_info()
-        db = mongo[context['mongo_db']]
-    except Exception, e:
-        print e
-        error("Could not connect to MongoDB.")
+    mongo = MongoClient(context['mongo_host'], context['mongo_port'], serverSelectionTimeoutMS=10000)
+    mongo.server_info()
+    db = mongo[context['mongo_db']]
 
     context['mongo_user'] = ''
     context['mongo_password'] = ''
     if not test_mongodb_connection(db):
-        context['mongo_user'] = user_input("MongoDB username")
-        context['mongo_password'] = user_input("MongoDB password")
+        context['mongo_user'] = os.environ.get('MONGODB_FAME_USER', None) or user_input("MongoDB username")
+        context['mongo_password'] = os.environ.get('MONGODB_FAME_PASS', None) or user_input("MongoDB password")
         try:
             db.authenticate(context['mongo_user'], quote_plus(context['mongo_password']))
         except:
@@ -80,7 +77,7 @@ def define_installation_type(context):
     print " - 1: Web server + local worker"
     print " - 2: Remote worker\n"
 
-    itype = user_input("Installation type", "1", ["1", "2"])
+    itype = os.environ.get('FAME_INSTALL_TYPE', None) or user_input("Installation type", "1", ["1", "2"])
     if itype == "1":
         context['installation_type'] = 'local'
     else:
@@ -121,7 +118,7 @@ def add_community_repository():
         print "[+] Installing community repository ..."
         repo = Repository({
             'name': 'community',
-            'address': 'https://github.com/certsocietegenerale/fame_modules.git',
+            'address': 'https://github.com/ehrenb/fame_modules.git',#'https://github.com/certsocietegenerale/fame_modules.git',
             'private': False,
             'status': 'cloning'
         })
@@ -132,7 +129,7 @@ def add_community_repository():
 def perform_local_installation(context):
     templates = Templates()
 
-    context['fame_url'] = user_input("FAME's URL for users (e.g. https://fame.yourdomain/)")
+    context['fame_url'] = os.environ.get('FAME_EXTERNAL_URL', None) or user_input("FAME's URL for users (e.g. https://fame.yourdomain/)")
     print "[+] Creating configuration file ..."
     context['secret_key'] = os.urandom(64).encode('hex')
     templates.save_to(os.path.join(FAME_ROOT, 'conf', 'fame.conf'), 'local_fame.conf', context)
@@ -167,7 +164,7 @@ def create_user_for_worker(context):
 def get_fame_url(context):
     import requests
 
-    context['fame_url'] = user_input("FAME's URL for worker")
+    context['fame_url'] = os.environ.get('FAME_INTERNAL_URL', None) or user_input("FAME's URL for worker")
 
     url = urljoin(context['fame_url'], '/modules/download')
     try:

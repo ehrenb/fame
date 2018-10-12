@@ -20,7 +20,6 @@ def update_repository():
 
 def update_requirements():
     print "[+] Updating requirements ..."
-
     rcode, output = pip_install('-r', os.path.join(FAME_ROOT, 'requirements.txt'))
 
     # In case pip failed
