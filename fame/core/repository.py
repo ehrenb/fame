@@ -14,13 +14,17 @@ from fame.core.module_dispatcher import dispatcher
 # Celery task to retrieve analysis object and run specific module on it
 @celery.task(soft_time_limit=60)
 def clone_repository(repository_id):
+    print('clone_repository')
     repository = Repository.get(_id=repository_id)
+    print('got repository')
     repository.do_clone()
 
 
 @celery.task(soft_time_limit=60)
 def pull_repository(repository_id):
+    print('pull_repository')
     repository = Repository.get(_id=repository_id)
+    print('got repository')
     repository.do_pull()
 
 

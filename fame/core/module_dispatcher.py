@@ -295,12 +295,14 @@ class ModuleDispatcher(object):
                         pass
 
     def update_modules(self, repository):
+        print("update_modules")
         base_dir = path.dirname(path.dirname(path.abspath(__file__)))
         modules_dir = path.join(base_dir, 'modules')
 
         self._remove_compiled_files(modules_dir)
 
         installed_modules = self.list_installed_modules_for(repository)
+        print("Installed modules: {}".format(installed_modules))
         updated_named_configs = []
 
         for name, obj in self.walk_modules(modules_dir, repository=repository):
