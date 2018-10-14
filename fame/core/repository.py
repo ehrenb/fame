@@ -12,13 +12,13 @@ from fame.core.module_dispatcher import dispatcher
 
 
 # Celery task to retrieve analysis object and run specific module on it
-# @celery.task(soft_time_limit=60)
+@celery.task(soft_time_limit=60)
 def clone_repository(repository_id):
     repository = Repository.get(_id=repository_id)
     repository.do_clone()
 
 
-# @celery.task(soft_time_limit=60)
+@celery.task(soft_time_limit=60)
 def pull_repository(repository_id):
     repository = Repository.get(_id=repository_id)
     repository.do_pull()
@@ -51,8 +51,8 @@ class Repository(MongoDict):
         return os.path.join(FAME_ROOT, 'fame', 'modules', self['name'])
 
     def clone(self):
-        # clone_repository.apply_async((self['_id'],), queue='updates')
-        clone_repository(self['_id'])
+        clone_repository.apply_async((self['_id'],), queue='updates')
+        # clone_repository(self['_id'])
 
     def do_clone(self):
         print "[+] Cloning '{}'".format(self['name'])
@@ -74,8 +74,8 @@ class Repository(MongoDict):
 
     def pull(self):
         self.update_value('status', 'updating')
-        # pull_repository.apply_async((self['_id'],), queue='updates')
-        pull_repository(self['_id'])
+        pull_repository.apply_async((self['_id'],), queue='updates')
+        # pull_repository(self['_id'])
 
     def do_pull(self):
         print "[+] Pulling '{}'".format(self['name'])
