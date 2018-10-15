@@ -217,8 +217,8 @@ if __name__ == '__main__':
             queues = ['unix']
 
     # A local worker should also take care of updates
-    if not fame_config.remote:
-        queues.append('updates')
+    # if not fame_config.remote:
+    queues.append('updates')
 
     fame_init()
     Worker(queues, args.celery_args, args.refresh_interval).start()
