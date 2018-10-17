@@ -31,7 +31,7 @@
                 					<td>{{analysis.status}}</td>
                 					<td>
                                         <div><a href="{{ url_for('AnalysesView:get', id=analysis._id) }}">{{analysis.file.md5}}</a></div>
-                                        <div><a href="{{ url_for('AnalysesView:delete', id=analysis._id) }}" data-confirm="This will delete this analysis object, are you sure?">Delete</a></div>
+                                        <div><a href="{{ url_for('AnalysesView:delete_analysis', id=analysis._id) }}" data-confirm="This will delete this analysis object, are you sure?">Delete</a></div>
                                         <div class="small">{{analysis.file.names|join(', ')}}</div>
                                     </td>
                 					<td>{{analysis.module if analysis.module != None}}</td>

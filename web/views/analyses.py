@@ -80,11 +80,6 @@ class AnalysesView(FlaskView, UIView):
 
         return render(analyses, 'analyses/index.html', ctx={'data': analyses, 'pagination': pagination})
 
-    def delete(self, id):
-        """Delete an analysis with `id`"""
-        self.get(id).delete()
-        return self.index()
-
     def get(self, id):
         """Get the analysis with `id`.
 
@@ -382,3 +377,10 @@ class AnalysesView(FlaskView, UIView):
                 return file_download(filepath)
             else:
                 abort(404)
+
+    @route('/<id>/delete')
+    def delete_analysis(self, id):
+        analysis = Analysis(get_or_404(current_user.analyses, _id=id))
+        analysis.delete()
+        return self.index()
+
