@@ -80,6 +80,11 @@ class AnalysesView(FlaskView, UIView):
 
         return render(analyses, 'analyses/index.html', ctx={'data': analyses, 'pagination': pagination})
 
+    def delete(self, id):
+        """Delete an analysis with `id`"""
+        self.get(id).delete()
+        return self.index()
+
     def get(self, id):
         """Get the analysis with `id`.
 
