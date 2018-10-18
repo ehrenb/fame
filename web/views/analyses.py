@@ -20,7 +20,7 @@ from fame.core.analysis import Analysis
 from fame.core.module import ModuleInfo
 from web.views.negotiation import render, redirect, validation_error
 from web.views.constants import PER_PAGE
-from web.views.helpers import file_download, get_or_404, requires_permission, clean_analyses, clean_files, clean_users, accepts_json
+from web.views.helpers import file_download, get_or_404, requires_permission, clean_analyses, clean_files, clean_users
 from web.views.mixins import UIView
 
 
