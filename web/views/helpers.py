@@ -137,3 +137,8 @@ def prevent_csrf(func):
         return func(*args, **kwargs)
 
     return inner
+
+def accepts_json(request):
+    if 'Accept' in request.headers and request.headers['Accept'] == 'application/json':
+        return True
+    return False

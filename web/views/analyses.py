@@ -3,6 +3,7 @@ import requests
 from StringIO import StringIO
 from shutil import copyfileobj
 from hashlib import md5
+from bson.json_util import dumps
 from pymongo import DESCENDING
 from flask import render_template, url_for, request, flash, make_response, abort, jsonify
 from flask_login import current_user
@@ -20,7 +21,7 @@ from fame.core.analysis import Analysis
 from fame.core.module import ModuleInfo
 from web.views.negotiation import render, redirect, validation_error
 from web.views.constants import PER_PAGE
-from web.views.helpers import file_download, get_or_404, requires_permission, clean_analyses, clean_files, clean_users
+from web.views.helpers import file_download, get_or_404, requires_permission, clean_analyses, clean_files, clean_users, accepts_json
 from web.views.mixins import UIView
 
 
@@ -77,8 +78,8 @@ class AnalysesView(FlaskView, UIView):
             if 'analyst' in analysis:
                 analyst = store.users.find_one({'_id': analysis['analyst']})
                 analysis['analyst'] = clean_users(analyst)
-        if 'Content-Type' in request.headers and request.headers['Content-Type'] == 'application/json':
-            return jsonify(clean_analyses(analyses))
+        if accepts_json(request):
+            return dumps(analyses)
         return render(analyses, 'analyses/index.html', ctx={'data': analyses, 'pagination': pagination})
 
     def get(self, id):
