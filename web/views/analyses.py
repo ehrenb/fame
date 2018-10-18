@@ -77,7 +77,8 @@ class AnalysesView(FlaskView, UIView):
             if 'analyst' in analysis:
                 analyst = store.users.find_one({'_id': analysis['analyst']})
                 analysis['analyst'] = clean_users(analyst)
-
+        if 'Content-Type' in request.headers and request.headers['Content-Type'] == 'application/json':
+            return jsonify(analyses)
         return render(analyses, 'analyses/index.html', ctx={'data': analyses, 'pagination': pagination})
 
     def get(self, id):
