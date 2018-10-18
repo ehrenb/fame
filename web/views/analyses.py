@@ -3,7 +3,6 @@ import requests
 from StringIO import StringIO
 from shutil import copyfileobj
 from hashlib import md5
-from bson.json_util import dumps
 from pymongo import DESCENDING
 from flask import render_template, url_for, request, flash, make_response, abort, jsonify
 from flask_login import current_user
@@ -78,8 +77,6 @@ class AnalysesView(FlaskView, UIView):
             if 'analyst' in analysis:
                 analyst = store.users.find_one({'_id': analysis['analyst']})
                 analysis['analyst'] = clean_users(analyst)
-        if accepts_json(request):
-            return dumps(analyses)
         return render(analyses, 'analyses/index.html', ctx={'data': analyses, 'pagination': pagination})
 
     def get(self, id):
