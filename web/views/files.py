@@ -120,7 +120,8 @@ class FilesView(FlaskView, UIView):
         f = File(filename=secure_filename(file.filename), stream=file.stream)
         #return render({'file': f})
         file = {'file': clean_files(get_or_404(current_user.files, sha256=f['sha256']))}
-        return return_file(file)
+        file['file']['_id'] = str(file['file']['_id']['$oid'])
+        return return_file()
 
     def download(self, id):
         """Download the file with `id`.
