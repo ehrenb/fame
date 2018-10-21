@@ -71,7 +71,7 @@ class File(MongoDict):
     # Tries to perform 'module_name' on this file
     def analyze(self, groups, analyst, module_name=None, options={}):
         analysis = Analysis({
-            'file': self['_id'],
+            'file': self['_id']['$oid'],
             'module': module_name,
             'options': options,
             'groups': list(set(groups + self['groups'])),
