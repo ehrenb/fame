@@ -5,6 +5,8 @@ from shutil import copy
 from hashlib import md5
 from urlparse import urljoin
 
+from bson.json_util import loads
+
 from fame.common.config import fame_config
 from fame.common.utils import iterify, u, send_file_to_remote
 from fame.common.mongo_dict import MongoDict
@@ -88,7 +90,7 @@ class Analysis(MongoDict):
         if not f.existing:
             if fame_config.remote:
                 response = send_file_to_remote(filepath, '/files/')
-                f = File(response.json()['file'])
+                f = File(loads(response.text)['file'])
             else:
                 f = File(filename=os.path.basename(filepath), stream=fd)
 
