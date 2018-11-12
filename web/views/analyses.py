@@ -185,8 +185,9 @@ class AnalysesView(FlaskView, UIView):
             for config in configs:
                 try:
                     config = config.get_values()
-                    
                     url = ''
+                    response = None
+
                     if config.name == 'virustotal':
                         params = {'apikey': config.api_key, 'hash': hash}
                         url = 'https://www.virustotal.com/vtapi/v2/file/download'
@@ -198,16 +199,16 @@ class AnalysesView(FlaskView, UIView):
                         url = 'https://www.reverse.it/api/v2/overview/{}/sample'.format(hash)
                         response  = requests.get(url, headers=headers)
                     
-                    if response.status_code == 403:
-                        flash('This requires a valid API key.', 'danger')
-                    elif response.status_code == 404:
-                        flash('No file found with this hash.', 'danger')
-                    elif response.status_code == 200:
-                        f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
-                        break
-
-                    else:
-                        flash('Unhandled HTTP response code for {} {}'.format(url, response.status_code))
+                    if response:
+                        if response.status_code == 403:
+                            flash('This requires a valid API key.', 'danger')
+                        elif response.status_code == 404:
+                            flash('No file found with this hash.', 'danger')
+                        elif response.status_code == 200:
+                            f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
+                            break
+                        else:
+                            flash('Unhandled HTTP response code for {} {}'.format(url, response.status_code))
                 except MissingConfiguration:
                     flash("{} is not properly configured.".format(config['name'], 'danger'))
         else:
