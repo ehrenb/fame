@@ -148,7 +148,7 @@ class AnalysesView(FlaskView, UIView):
                     hash_capable = True
                 except:
                     hash_capable = False
-                    
+
         return render_template('analyses/new.html', hash_capable=hash_capable, options=dispatcher.options)
 
     def _validate_form(self, groups, module):
@@ -183,40 +183,32 @@ class AnalysesView(FlaskView, UIView):
         elif hash:
             config = Config.get(name="virustotal")
             config_reverseit = Config.get(name="reverseit")
-            if config:
+            configs = [config, config_reverseit]
+
+            #for each config, attempt to download, stop once successful
+            for config in configs:
                 try:
                     config = config.get_values()
-                    params = {'apikey': config.api_key, 'hash': hash}
-                    l = requests.get('https://www.virustotal.com/vtapi/v2/file/download', params=params)
+                    
+                    if config['name'] == 'virustotal':
+                        params = {'apikey': config.api_key, 'hash': hash}
+                        l = requests.get('https://www.virustotal.com/vtapi/v2/file/download', params=params)
+                    if config['name'] == 'reverseit':
+                        headers = {'User-Agent': 'Falcon Sandbox',
+                                   'api-key': config.api_key}
+                        l = requests.get('https://www.reverse.it/api/v2/overview/{}/sample'.format(hash), headers=headers)
+                    
                     if response.status_code == 403:
                         flash('This requires a valid API key.', 'danger')
                     elif response.status_code == 404:
                         flash('No file found with this hash.', 'danger')
                     elif response.status_code == 200:
                         f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
+                        break
                 except MissingConfiguration:
-                    flash("VirusTotal is not properly configured.", 'danger')
-
-            elif config_reverseit:
-                try:
-                    config = config_reverseit.get_values()
-                    headers = {'User-Agent': 'Falcon Sandbox',
-                              'api-key': config.api_key}
-                    l = requests.get('https://www.reverse.it/api/v2/overview/{}/sample'.format(hash), headers=headers)
-                    if response.status_code == 403:
-                        flash('This requires a valid API key.', 'danger')
-                    elif response.status_code == 404:
-                        flash('No file found with this hash.', 'danger')
-                    elif response.status_code == 200:
-                        f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
-                except MissingConfiguration:
-                    flash("Reverseit is not properly configured.", 'danger')
-
-            else:
-                flash("There seems to be a problem with your installation (no 'virustotal' configuration or 'reverseit' configuration)", 'danger')
+                    flash("{} is not properly configured.".format(config['name'], 'danger'))
         else:
             flash('You have to submit a file, a URL or a hash', 'danger')
-
         return f
 
     def post(self):
