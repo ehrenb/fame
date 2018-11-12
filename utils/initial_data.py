@@ -64,6 +64,7 @@ apk = apk
 jar = jar
 zip = zip
 gzip = gzip
+gz = gzip
 msg = msg
 eml = eml""",
                     'description': "In order to determine the file type, FAME will use the `python-magic` library. It will then try to find a match in 'mappings' for either the extension, the detailed type or the mime type (in this order of priority). If no matching type was found, the mime type will be used."
