@@ -132,22 +132,18 @@ class AnalysesView(FlaskView, UIView):
     def new(self):
         config = Config.get(name="virustotal")
         config_reverseit = Config.get(name="reverseit")
-
+        configs = [config, config_reverseit]
         hash_capable = False
-        if config:
-            try:
-                config.get_values()
-                hash_capable = True
-            except:
-                hash_capable = False
 
-        if not hash_capable:
-            if config_reverseit:
+        for config in configs:
+            if hash_capable:
+                break
+            if config:
                 try:
-                    config_reverseit.get_values()
+                    config.get_values()
                     hash_capable = True
                 except:
-                    hash_capable = False
+                    continue
 
         return render_template('analyses/new.html', hash_capable=hash_capable, options=dispatcher.options)
 
@@ -190,13 +186,17 @@ class AnalysesView(FlaskView, UIView):
                 try:
                     config = config.get_values()
                     
+                    url = ''
                     if config.name == 'virustotal':
                         params = {'apikey': config.api_key, 'hash': hash}
-                        l = requests.get('https://www.virustotal.com/vtapi/v2/file/download', params=params)
+                        url = 'https://www.virustotal.com/vtapi/v2/file/download'
+                        response  = requests.get(url, params=params)
+                    
                     if config.name == 'reverseit':
                         headers = {'User-Agent': 'Falcon Sandbox',
                                    'api-key': config.api_key}
-                        l = requests.get('https://www.reverse.it/api/v2/overview/{}/sample'.format(hash), headers=headers)
+                        url = 'https://www.reverse.it/api/v2/overview/{}/sample'.format(hash)
+                        response  = requests.get(url, headers=headers)
                     
                     if response.status_code == 403:
                         flash('This requires a valid API key.', 'danger')
@@ -205,6 +205,9 @@ class AnalysesView(FlaskView, UIView):
                     elif response.status_code == 200:
                         f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
                         break
+
+                    else:
+                        flash('Unhandled HTTP response code for {} {}'.format(url, response.status_code))
                 except MissingConfiguration:
                     flash("{} is not properly configured.".format(config['name'], 'danger'))
         else:
