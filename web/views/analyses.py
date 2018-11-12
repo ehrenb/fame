@@ -196,12 +196,12 @@ class AnalysesView(FlaskView, UIView):
                 try:
                     config_values = config.get_values()
                     url = ''
-                    if config.name == 'virustotal':
+                    if config['name'] == 'virustotal':
                         params = {'apikey': config_values.api_key, 'hash': hash}
                         url = 'https://www.virustotal.com/vtapi/v2/file/download'
                         response  = requests.get(url, params=params)
                     
-                    if config.name == 'reverseit':
+                    if config['name'] == 'reverseit':
                         headers = {'User-Agent': 'Falcon Sandbox',
                                    'api-key': config_values.api_key}
                         url = 'https://www.reverse.it/api/v2/overview/{}/sample'.format(hash)
