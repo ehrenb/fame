@@ -100,10 +100,27 @@ def create_virustotal_configuration():
 
         vt.save()
 
+def create_reverseit_configuration():
+    reverseit = Config.get(name='reverseit')
+    if reverseit is None:
+        reverseit = Config({
+            'name': 'reverseit',
+            'description': 'Reverseit API configuration, in order to be able to submit hashes.',
+            'config': [
+                {
+                    'name': 'api_key',
+                    'description': 'Reverseit API key.',
+                    'type': 'str',
+                    'value': None
+                }
+            ]})
+
+        reverseit.save()
 
 def create_initial_data():
     create_types()
     create_virustotal_configuration()
+    create_reverseit_configuration()
     create_internals()
 
 
