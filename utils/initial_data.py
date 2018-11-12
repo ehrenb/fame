@@ -32,6 +32,7 @@ text/rtf = rtf
 application/x-coredump = memory_dump
 application/pdf = pdf
 application/zip = zip
+application/gzip = gzip
 text/x-mail = eml
 message/rfc822 = eml
 application/CDFV2-unknown = msg
@@ -62,6 +63,7 @@ pdf = pdf
 apk = apk
 jar = jar
 zip = zip
+gzip = gzip
 msg = msg
 eml = eml""",
                     'description': "In order to determine the file type, FAME will use the `python-magic` library. It will then try to find a match in 'mappings' for either the extension, the detailed type or the mime type (in this order of priority). If no matching type was found, the mime type will be used."
