@@ -131,6 +131,7 @@ class AnalysesView(FlaskView, UIView):
 
     def new(self):
         config = Config.get(name="virustotal")
+        config_reverseit = Config.get(name="reverseit")
 
         hash_capable = False
         if config:
@@ -140,6 +141,14 @@ class AnalysesView(FlaskView, UIView):
             except:
                 hash_capable = False
 
+        if not hash_capable:
+            if config_reverseit:
+                try:
+                    config_reverseit.get_values()
+                    hash_capable = True
+                except:
+                    hash_capable = False
+                    
         return render_template('analyses/new.html', hash_capable=hash_capable, options=dispatcher.options)
 
     def _validate_form(self, groups, module):
@@ -202,7 +211,7 @@ class AnalysesView(FlaskView, UIView):
                         f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
                 except MissingConfiguration:
                     flash("Reverseit is not properly configured.", 'danger')
-                    
+
             else:
                 flash("There seems to be a problem with your installation (no 'virustotal' configuration or 'reverseit' configuration)", 'danger')
         else:
