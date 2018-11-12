@@ -130,9 +130,9 @@ class AnalysesView(FlaskView, UIView):
         })
 
     def new(self):
-        config = Config.get(name="virustotal")
+        config_virustotal = Config.get(name="virustotal")
         config_reverseit = Config.get(name="reverseit")
-        configs = [config, config_reverseit]
+        configs = [config_virustotal, config_reverseit]
         hash_capable = False
 
         for config in configs:
@@ -177,17 +177,25 @@ class AnalysesView(FlaskView, UIView):
                 f.update_value('type', 'url')
                 f.update_value('names', [url])
         elif hash:
-            config = Config.get(name="virustotal")
+            config_virustotal = Config.get(name="virustotal")
             config_reverseit = Config.get(name="reverseit")
-            configs = [config, config_reverseit]
+            configs = [config_virustotal, config_reverseit]
 
-            #for each config, attempt to download, stop once successful
+            # prune out configs that aren't complete, e.g. missing api key
+            # configured_properly = []
+            # for c in configs:
+            #     if config:
+            #         try:
+            #             config.get_values()
+            #             configured_properly.append(config)
+            #         except MissingConfiguration:
+            #             continue
+
+            #for each: attempt to download, stop once successful
             for config in configs:
                 try:
                     config = config.get_values()
                     url = ''
-                    response = None
-
                     if config.name == 'virustotal':
                         params = {'apikey': config.api_key, 'hash': hash}
                         url = 'https://www.virustotal.com/vtapi/v2/file/download'
