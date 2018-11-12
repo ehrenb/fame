@@ -194,16 +194,16 @@ class AnalysesView(FlaskView, UIView):
             #for each: attempt to download, stop once successful
             for config in configs:
                 try:
-                    config = config.get_values()
+                    config_values = config.get_values()
                     url = ''
                     if config.name == 'virustotal':
-                        params = {'apikey': config.api_key, 'hash': hash}
+                        params = {'apikey': config_values.api_key, 'hash': hash}
                         url = 'https://www.virustotal.com/vtapi/v2/file/download'
                         response  = requests.get(url, params=params)
                     
                     if config.name == 'reverseit':
                         headers = {'User-Agent': 'Falcon Sandbox',
-                                   'api-key': config.api_key}
+                                   'api-key': config_values.api_key}
                         url = 'https://www.reverse.it/api/v2/overview/{}/sample'.format(hash)
                         response  = requests.get(url, headers=headers)
                     
