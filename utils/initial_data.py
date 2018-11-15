@@ -45,9 +45,15 @@ MIME entity, ISO-8859 text, with very long lines, with CRLF line terminators = w
 Dalvik dex file = dex
 
 [extensions]
-
+elf = elf
+oat = oat
+macho = macho
+vdex = vdex
+dex = dex
+art = art
 exe = executable
 scr = executable
+dll = executable
 doc = word
 docx = word
 docm = word
