@@ -22,6 +22,7 @@ def create_types():
                     'value': """[types]
 
 application/x-dosexec = executable
+application/x-mach-binary = macho
 application/x-executable = elf
 application/vnd.openxmlformats-officedocument.wordprocessingml.document = word
 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet = excel
@@ -44,11 +45,21 @@ application/java-archive = jar
 MIME entity, ISO-8859 text, with CRLF line terminators = word
 MIME entity, ISO-8859 text, with very long lines, with CRLF line terminators = word
 Dalvik dex file = dex
+Mach-O = macho
+ELF = elf
+gzip compressed data = gz
+Java archive data = jar
+Zip archive data = zip
+PE32 executable = executable
+PE32+ executable = executable
+PDF document = pdf
 
 [extensions]
 elf = elf
 oat = oat
+odex = oat
 macho = macho
+dylib = macho
 vdex = vdex
 dex = dex
 art = art
