@@ -35,6 +35,10 @@ def main():
     update_repository()
     update_requirements()
 
+    # Make sure basic configuration values are present
+    from utils.initial_data import create_initial_data
+    create_initial_data()
+
     end_message()
 
 

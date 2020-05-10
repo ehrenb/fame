@@ -54,16 +54,14 @@ class ModuleInfo(MongoDict):
     def update_config(self, new_info):
         if self['type'] == 'Processing':
             self['generates'] = new_info['generates']
-
-            self['queue'] = new_info['queue']
-            if 'queue' in self['diffs']:
-                if self['diffs']['queue'] == new_info['queue']:
-                    del self['diffs']['queue']
-                else:
-                    self['queue'] = self['diffs']['queue']
-
+            self._update_diffed_value('queue', new_info['queue'])
             self._update_diffed_value('acts_on', new_info['acts_on'])
             self._update_diffed_value('triggered_by', new_info['triggered_by'])
+
+        elif self['type'] == 'Preloading':
+            self._update_diffed_value('queue', new_info['queue'])
+            self._update_diffed_value('priority', new_info['priority'])
+
         elif self['type'] == 'Filetype':
             self._update_diffed_value('acts_on', new_info['acts_on'])
 
@@ -120,25 +118,33 @@ class ModuleInfo(MongoDict):
             self['diffs'][name]['removed'].append(value)
 
     def _update_diffed_value(self, name, value):
-        self._init_list_diff(name)
-        self[name] = value
+        if is_iterable(value):
+            self._init_list_diff(name)
+            self[name] = value
 
-        if name in self['diffs']:
-            new_removed = []
-            for element in self['diffs'][name]['removed']:
-                if element in self[name]:
-                    self[name].remove(element)
-                    new_removed.append(element)
+            if name in self['diffs']:
+                new_removed = []
+                for element in self['diffs'][name]['removed']:
+                    if element in self[name]:
+                        self[name].remove(element)
+                        new_removed.append(element)
 
-            self['diffs'][name]['removed'] = new_removed
+                self['diffs'][name]['removed'] = new_removed
 
-            new_added = []
-            for element in self['diffs'][name]['added']:
-                if element not in self[name]:
-                    self[name].append(element)
-                    new_added.append(element)
+                new_added = []
+                for element in self['diffs'][name]['added']:
+                    if element not in self[name]:
+                        self[name].append(element)
+                        new_added.append(element)
 
-            self['diffs'][name]['added'] = new_added
+                self['diffs'][name]['added'] = new_added
+        else:
+            self[name] = value
+            if name in self['diffs']:
+                if self['diffs'][name] == value:
+                    del self['diffs'][name]
+                else:
+                    self[name] = self['diffs'][name]
 
 
 class Module(object):
@@ -252,6 +258,15 @@ class Module(object):
             if config['value'] is None:
                 setattr(self, config['name'], config['default'])
 
+    def log(self, level, message):
+        """Add a log message to the analysis
+
+        Args:
+            level: string to define the log level (``debug``, ``info``, ``warning`` or ``error``).
+            message: free text message containing the log information.
+        """
+        self._analysis.log(level, "%s: %s" % (self.name, message))
+
     @classmethod
     def named_config(cls, name):
         config = {
@@ -312,15 +327,6 @@ class ProcessingModule(Module):
         self.results = None
         self.tags = []
 
-    def log(self, level, message):
-        """Add a log message to the analysis
-
-        Args:
-            level: string to define the log level (``debug``, ``info``, ``warning`` or ``error``).
-            message: free text message containing the log information.
-        """
-        self._analysis.log(level, "%s: %s" % (self.name, message))
-
     def register_files(self, file_type, locations):
         """Add a generated file to the analysis.
 
@@ -337,12 +343,12 @@ class ProcessingModule(Module):
             new_type (string): new FAME file type."""
         self._analysis.change_type(location, new_type)
 
-    def add_extracted_file(self, location):
+    def add_extracted_file(self, location, automatic_analysis=True):
         """Create a new file that deserves its own analysis.
 
         Args:
             location (string): full path."""
-        self._analysis.add_extracted_file(location)
+        self._analysis.add_extracted_file(location, automatic_analysis)
 
     def add_support_file(self, name, location):
         """Add a support file to this analysis. A support file is a file that
@@ -906,6 +912,23 @@ class ThreatIntelligenceModule(Module):
         """
         pass
 
+    def has_submit_implementation(self):
+        """
+        This method checks if one of the submission methods has been
+        overwritten from his origin class.
+
+        This way, you can know if the ThreatIntelligence module has submission
+        capability.
+        """
+        methods = [self.iocs_submission, self.ioc_submission]
+        for method in methods:
+            for cls in inspect.getmro(method.im_class):
+                if method.__name__ in cls.__dict__:
+                    if cls.__name__ != 'ThreatIntelligenceModule':
+                        return True
+        return False
+
+
     @classmethod
     def static_info(cls):
         info = {
@@ -952,7 +975,7 @@ class FiletypeModule(Module):
 
     acts_on = []
 
-    def recognize(filepath, current_type):
+    def recognize(self, filepath, current_type):
         """To implement. Checks the file in order to determine more accurate
         type.
 
@@ -1086,6 +1109,84 @@ class VirtualizationModule(Module):
             "type": "Virtualization",
             "config": cls.config,
             "diffs": {},
+        }
+
+        init_config_values(info)
+
+        return ModuleInfo(info)
+
+
+class PreloadingModule(Module):
+    """Base class for preloading modules
+
+    PreloadingModules can be used to download the sample
+    binary from e.g. VirusTotal before queueing any
+    processing modules. Hence, PreloadingModules only work
+    on hashes. A successful execution of a PreloadingModule
+    updates the Analysis object with the new data and queues
+    the remaining modules as if the sample itself was uploaded
+    the FAME.
+
+    Attributes:
+        queue: A string defining on which queue the tasks will be added. This
+            defines on which worker this module will execute. The default
+            value is `unix`.
+
+        priority: An integer defining the module's priority when preloading.
+            The smallest values are used first (defaults to 100).
+    """
+
+    queue = 'unix'
+    priority = 100
+
+    def __init__(self, with_config=True):
+        Module.__init__(self, with_config)
+        self.results = None
+        self.tags = []
+
+    def preload(self, target):
+        """ To implement.
+
+        Args:
+            target (string): the hash that is to be analyzed
+        Returns:
+            A boolean indicating whether or not a file could be downloaded
+            for the given hash
+        """
+        raise NotImplementedError
+
+    def add_preloaded_file(self, filepath=None, fd=None):
+        self._analysis.add_preloaded_file(filepath, fd)
+
+    def init_options(self, options):
+        for option in options:
+            setattr(self, option, options[option])
+
+    def execute(self, analysis):
+        try:
+            self._analysis = analysis
+            self.init_options(analysis['options'])
+            return self.preload(self._analysis.get_main_file())
+        except ModuleExecutionError, e:
+            self.log("error", "Could not run on %s: %s" % (
+                self._analysis.get_main_file(), e))
+            return False
+        except:
+            tb = traceback.format_exc()
+            self.log("error", "Exception occurred while execting module on %s.\n %s" % (
+                self._analysis.get_main_file(), tb))
+            return False
+
+    @classmethod
+    def static_info(cls):
+        info = {
+            "name": cls.name,
+            "description": cls.description,
+            "type": "Preloading",
+            "config": cls.config,
+            "diffs": {},
+            "queue": cls.queue,
+            "priority": cls.priority
         }
 
         init_config_values(info)

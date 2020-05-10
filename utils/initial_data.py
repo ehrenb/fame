@@ -104,22 +104,53 @@ def create_internals():
         updates.save()
 
 
-def create_virustotal_configuration():
-    vt = Config.get(name='virustotal')
-    if vt is None:
-        vt = Config({
-            'name': 'virustotal',
-            'description': 'VirusTotal API configuration, in order to be able to submit hashes.',
+def create_comment_configuration():
+    comments = Config.get(name='comments')
+    if comments is None:
+        comments = Config({
+            'name': 'comments',
+            'description': 'Analysis comments configuration.',
             'config': [
                 {
-                    'name': 'api_key',
-                    'description': 'VirusTotal Intelligence API key.',
-                    'type': 'str',
+                    'name': 'enable',
+                    'description': 'Let users add comments to an analysis.',
+                    'type': 'bool',
+                    'default': True,
+                    'value': True
+                },
+                {
+                    'name': 'minimum_length',
+                    'description': 'Define a minimal character count to be enforced when submitting an analysis',
+                    'type': 'integer',
+                    'default': 0,
                     'value': None
                 }
-            ]})
+            ]
+        })
 
-        vt.save()
+        comments.save()
+
+
+def create_extracted_schedule():
+    extracted = Config.get(name="extracted")
+    if extracted is None:
+        extracted = Config({
+            "name": "extracted",
+            "description": "Define which modules are scheduled by default on extracted files",
+            "config": [
+                {
+                    "name": "modules",
+                    "type": "text",
+                    "value": """peepdf
+document_preview
+exiftool
+office_macros
+virustotal_public
+"""
+                }
+            ]
+        })
+        extracted.save()
 
 def create_reverseit_configuration():
     reverseit = Config.get(name='reverseit')
@@ -140,9 +171,9 @@ def create_reverseit_configuration():
 
 def create_initial_data():
     create_types()
-    create_virustotal_configuration()
-    create_reverseit_configuration()
     create_internals()
+    create_comment_configuration()
+    create_extracted_schedule()
 
 
 if __name__ == '__main__':

@@ -55,8 +55,9 @@
     <!-- Tags Input -->
     <script src="{{ url_for('static', filename='js/tagsinput.js') }}"></script>
 
-    <!-- Typeahead -->
-    <script src="{{ url_for('static', filename='js/typeahead.bundle.min.js') }}"></script>
+    <!-- Flexdatalist -->
+    <link href="{{ url_for('static', filename='css/jquery.flexdatalist.min.css') }}" rel="stylesheet" />
+    <script src="{{ url_for('static', filename='js/jquery.flexdatalist.min.js') }}"></script>
 
     <!-- Handlebars -->
     <script src="{{ url_for('static', filename='js/handlebars.min.js') }}"></script>
@@ -86,7 +87,7 @@
                         <li>
                             <a href="{{ url_for('AnalysesView:get', id=analysis._id) }}">
                                 <div class="last-analyses-status">
-                                    {% if analysis.status == 'running' %}
+                                    {% if analysis.status in ('running', 'preloading') %}
                                         <i class="fa fa-refresh text-warning spinner"></i>
                                     {% elif analysis.status == 'finished' %}
                                         <i class="fa fa-check text-success"></i>
@@ -107,9 +108,9 @@
                                     {{analysis.file.names|join(', ')}}
                                 </div>
 
-                                {% if analysis.probable_names %}
+                                {% if analysis.file.probable_names %}
                                     <div>
-                                        <strong>{{analysis.probable_names|join(', ')}}</strong>
+                                        <strong>{{analysis.file.probable_names|join(', ')}}</strong>
                                     </div>
                                 {% endif %}
                             </a>

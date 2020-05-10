@@ -4,7 +4,10 @@ from StringIO import StringIO
 from shutil import copyfileobj
 from hashlib import md5
 from pymongo import DESCENDING
-from flask import render_template, url_for, request, flash, make_response, abort, jsonify
+from flask import (
+    render_template, url_for, request, flash,
+    make_response, abort, jsonify
+)
 from flask_login import current_user
 from flask_classy import FlaskView, route
 from flask_paginate import Pagination
@@ -20,7 +23,10 @@ from fame.core.analysis import Analysis
 from fame.core.module import ModuleInfo
 from web.views.negotiation import render, redirect, validation_error
 from web.views.constants import PER_PAGE
-from web.views.helpers import file_download, get_or_404, requires_permission, clean_analyses, clean_files, clean_users
+from web.views.helpers import (
+    file_download, get_or_404, requires_permission, clean_analyses,
+    clean_files, clean_users, comments_enabled, enrich_comments
+)
 from web.views.mixins import UIView
 
 
@@ -38,13 +44,13 @@ def get_options():
             if option_type == 'integer':
                 try:
                     options[option] = int(value, 0)
-                except:
+                except Exception:
                     flash('{} must be an integer'.format(option), 'danger')
                     return None
             else:
                 options[option] = value
 
-    for option in dispatcher.options['bool']:
+    for option in dispatcher.options['bool'].keys() + ['magic_enabled']:
         value = request.form.get("options[{}]".format(option))
         options[option] = (value is not None) and (value not in ['0', 'False'])
 
@@ -108,8 +114,8 @@ class AnalysesView(FlaskView, UIView):
         """
         analysis = {'analysis': clean_analyses(get_or_404(current_user.analyses, _id=id))}
         file = current_user.files.find_one({'_id': analysis['analysis']['file']})
-        analysis['analysis']['file'] = clean_files(file)
-        ti_modules = [m.name for m in dispatcher.get_threat_intelligence_modules()]
+        analysis['analysis']['file'] = enrich_comments(clean_files(file))
+        ti_modules = [m for m in dispatcher.get_threat_intelligence_modules()]
         av_modules = [m.name for m in dispatcher.get_antivirus_modules()]
 
         if 'extracted_files' in analysis['analysis']:
@@ -126,28 +132,14 @@ class AnalysesView(FlaskView, UIView):
             'analysis': analysis,
             'modules': modules,
             'av_modules': av_modules,
-            'ti_modules': ti_modules
+            'ti_modules': ti_modules,
+            'comments_enabled': comments_enabled()
         })
 
     def new(self):
-        config_virustotal = Config.get(name="virustotal")
-        config_reverseit = Config.get(name="reverseit")
-        configs = [config_virustotal, config_reverseit]
-        hash_capable = False
+        return render_template('analyses/new.html', options=dispatcher.options, comments_enabled=comments_enabled())
 
-        for config in configs:
-            if hash_capable:
-                break
-            if config:
-                try:
-                    config.get_values()
-                    hash_capable = True
-                except:
-                    continue
-
-        return render_template('analyses/new.html', hash_capable=hash_capable, options=dispatcher.options)
-
-    def _validate_form(self, groups, module):
+    def _validate_form(self, groups, modules, options):
         for group in groups:
             if group in current_user['groups']:
                 break
@@ -155,9 +147,28 @@ class AnalysesView(FlaskView, UIView):
             flash('You have to at least share with one of your groups.', 'danger')
             return False
 
-        if module:
-            if not ModuleInfo.get(name=module):
-                flash('"{}" is not a valid module'.format(module), 'danger')
+        if modules:
+            for module in modules:
+                if not ModuleInfo.get(name=module):
+                    flash('"{}" is not a valid module'.format(module), 'danger')
+                    return False
+        else:
+            if not options['magic_enabled']:
+                flash('You have to select at least one module to execute when magic is disabled', 'danger')
+                return False
+
+        return True
+
+    def _validate_comment(self, comment):
+        config = Config.get(name="comments")
+
+        if config:
+            config = config.get_values()
+
+            if config['enable'] and config['minimum_length'] > len(comment):
+                flash(
+                    'Comment has to contain at least {} characters'.format(config['minimum_length']),
+                    'danger')
                 return False
 
         return True
@@ -177,48 +188,7 @@ class AnalysesView(FlaskView, UIView):
                 f.update_value('type', 'url')
                 f.update_value('names', [url])
         elif hash:
-            config_virustotal = Config.get(name="virustotal")
-            config_reverseit = Config.get(name="reverseit")
-            configs = [config_virustotal, config_reverseit]
-
-            # prune out configs that aren't complete, e.g. missing api key
-            # configured_properly = []
-            # for c in configs:
-            #     if config:
-            #         try:
-            #             config.get_values()
-            #             configured_properly.append(config)
-            #         except MissingConfiguration:
-            #             continue
-
-            #for each: attempt to download, stop once successful
-            for config in configs:
-                try:
-                    config_values = config.get_values()
-                    url = ''
-                    if config['name'] == 'virustotal':
-                        params = {'apikey': config_values.api_key, 'hash': hash}
-                        url = 'https://www.virustotal.com/vtapi/v2/file/download'
-                        response  = requests.get(url, params=params)
-                    
-                    if config['name'] == 'reverseit':
-                        headers = {'User-Agent': 'Falcon Sandbox',
-                                   'api-key': config_values.api_key}
-                        url = 'https://www.reverse.it/api/v2/overview/{}/sample'.format(hash)
-                        response  = requests.get(url, headers=headers)
-                    
-                    if response:
-                        if response.status_code == 403:
-                            flash('This requires a valid API key.', 'danger')
-                        elif response.status_code == 404:
-                            flash('No file found with this hash.', 'danger')
-                        elif response.status_code == 200:
-                            f = File(filename='{}.bin'.format(hash), stream=StringIO(response.content))
-                            break
-                        else:
-                            flash('Unhandled HTTP response code for {} {}'.format(url, response.status_code))
-                except MissingConfiguration:
-                    flash("{} is not properly configured.".format(config['name'], 'danger'))
+            f = File(hash=hash)
         else:
             flash('You have to submit a file, a URL or a hash', 'danger')
         return f
@@ -273,28 +243,37 @@ class AnalysesView(FlaskView, UIView):
         :form string hash: (optional) hash to analyze.
         :form string module: (optional) the name of the target module.
         :form string groups: a comma-separated list of groups that will have access to this analysis.
+        :form string comment: comment to add to this object.
         :form string option[*]: value of each enabled option.
         """
         file_id = request.form.get('file_id')
-        module = request.form.get('module') or None
+        modules = filter(None, request.form.get('modules', '').split(','))
         groups = request.form.get('groups', '').split(',')
-
-        valid_submission = self._validate_form(groups, module)
-        if not valid_submission:
-            return validation_error()
+        comment = request.form.get('comment', '')
 
         options = get_options()
         if options is None:
             return validation_error()
 
+        valid_submission = self._validate_form(groups, modules, options)
+        if not valid_submission:
+            return validation_error()
+
         if file_id is not None:
             f = File(get_or_404(current_user.files, _id=file_id))
-            analysis = {'analysis': f.analyze(groups, current_user['_id'], module, options)}
+            analysis = {'analysis': f.analyze(groups, current_user['_id'], modules, options)}
             return redirect(analysis, url_for('AnalysesView:get', id=analysis['analysis']['_id']))
         else:
+            # When this is a new submission, validate the comment
+            if not self._validate_comment(comment):
+                return validation_error()
+
             f = self._get_object_to_analyze()
             if f is not None:
                 f.add_owners(set(current_user['groups']) & set(groups))
+
+                if comment:
+                    f.add_comment(current_user['_id'], comment)
 
                 if f.existing:
                     f.add_groups(groups)
@@ -302,7 +281,7 @@ class AnalysesView(FlaskView, UIView):
 
                     return redirect(clean_files(f), url_for('FilesView:get', id=f['_id']))
                 else:
-                    analysis = {'analysis': clean_analyses(f.analyze(groups, current_user['_id'], module, options))}
+                    analysis = {'analysis': clean_analyses(f.analyze(groups, current_user['_id'], modules, options))}
                     analysis['analysis']['file'] = clean_files(f)
 
                     return redirect(analysis, url_for('AnalysesView:get', id=analysis['analysis']['_id']))
@@ -343,7 +322,7 @@ class AnalysesView(FlaskView, UIView):
             for filepath in analysis['generated_files'][file_type]:
                 filepath = filepath.encode('utf-8')
                 if filehash == md5(filepath).hexdigest():
-                    return file_download(filehash)
+                    return file_download(filepath)
 
         filepath = analysis._file['filepath'].encode('utf-8')
         if filehash == md5(filepath).hexdigest():
@@ -360,7 +339,7 @@ class AnalysesView(FlaskView, UIView):
         # Create parent dirs if they don't exist
         try:
             os.makedirs(dirpath)
-        except:
+        except OSError:
             pass
 
         with open(filepath, "wb") as fd:
@@ -405,3 +384,16 @@ class AnalysesView(FlaskView, UIView):
                 return file_download(filepath)
             else:
                 abort(404)
+
+    @route('/<id>/refresh-iocs')
+    def refresh_iocs(self, id):
+        """Refresh IOCs with Threat Intel modules
+
+        .. :quickref: Analysis; Refresh IOCs with Threat Intel modules.
+
+        :param id: id of the analysis.
+        """
+        analysis = Analysis(get_or_404(current_user.analyses, _id=id))
+        analysis.refresh_iocs()
+
+        return redirect(analysis, url_for('AnalysesView:get', id=analysis["_id"]))
