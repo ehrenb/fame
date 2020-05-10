@@ -17,6 +17,7 @@ class DispatchingException(Exception):
 class ModuleDispatcher(object):
     def reload(self):
         self._modules = {
+            'Preloading': [],
             'Processing': {},
             'Reporting': [],
             'Antivirus': [],
@@ -41,16 +42,31 @@ class ModuleDispatcher(object):
             ('manage_users', 'Allows for users management (creation, modification, etc.)'),
             ('configs', 'Grants access to the "Configs" section that tracks malware configurations.'),
             ('submit_iocs', 'Allows user to send observables to Threat Intelligence modules.'),
+            ('add_probable_name', "Allows user to set an object's probable name"),
             ('see_logs', 'Allows user to access the log section of anlyses. This could reveal information on the underlying system.')
         ])
 
         self.load_all_modules()
+
+    def get_module(self, module_name):
+        return (
+            self.get_preloading_module(module_name) or
+            self.get_processing_module(module_name) or
+            None
+        )
 
     def get_processing_module(self, module_name):
         if module_name in self._modules['Processing']:
             return self._modules['Processing'][module_name]()
 
         return None
+
+    def get_preloading_module(self, module_name):
+        for module in self._modules['Preloading']:
+            if module.info['name'] == module_name:
+                return module()
+        else:
+            return None
 
     # Get all modules triggered by a specific tag
     def triggered_by(self, tag):
@@ -81,6 +97,26 @@ class ModuleDispatcher(object):
             else:
                 return self._shortest_path_to_module(types_available, module, excluded_modules)
 
+    def next_preloading_module(self, selected_modules=[], excluded_modules=[]):
+        candidate_module = None
+        smallest_priority = None
+
+        for module in self.get_preloading_modules():
+            if (
+                (not selected_modules or module.info['name'] in selected_modules)
+                and module.info['name'] not in excluded_modules
+            ):
+                module_info = ModuleInfo.get(name=module.info['name'])
+
+                if smallest_priority is None or module_info['priority'] < smallest_priority:
+                    candidate_module = module_info['name']
+                    smallest_priority = module_info['priority']
+
+        if candidate_module:
+            return candidate_module
+        else:
+            raise DispatchingException("No more preloading module available")
+
     # Get all generale purpose modules
     def general_purpose(self):
         return self._general
@@ -93,6 +129,9 @@ class ModuleDispatcher(object):
 
     def get_antivirus_modules(self):
         return self._modules['Antivirus']
+
+    def get_preloading_modules(self):
+        return self._modules['Preloading']
 
     def get_filetype_modules_for(self, current_type):
         if current_type in self._modules['Filetype']:
@@ -171,6 +210,13 @@ class ModuleDispatcher(object):
                     for source_type in iterify(module['acts_on']):
                         self._add_trigger(self._triggers, "_generated_file(%s)" % source_type, module)
 
+    def add_preloading_module(self, module):
+        m = get_class(module['path'], module['class'])
+        if m:
+            m.info = module
+            self._add_module_options(module)
+            self._modules['Preloading'].append(m)
+
     def _add_module_permissions(self, module):
         module = self._modules['Processing'][module['name']]
         for permission in module.permissions:
@@ -226,6 +272,8 @@ class ModuleDispatcher(object):
                 self.add_virtualization_module(module)
             elif module['type'] == "Filetype":
                 self.add_filetype_module(module)
+            elif module['type'] == "Preloading":
+                self.add_preloading_module(module)
             else:
                 self.add_module(module)
 

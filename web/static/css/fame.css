@@ -316,6 +316,37 @@ a#avatar-dropdown {
     border: 1px solid #d3d3d3;
 }
 
+.card .content.comments {
+    padding-top: 30px;
+}
+
+.comments hr {
+    color: #DDDDDD;
+}
+
+.comments pre {
+    background-color: unset;
+    border: unset;
+    font-family: unset;
+    font-size: unset;
+    padding: unset;
+}
+
+.comment-info {
+    font-style: italic;
+    color: #888888;
+}
+
+.comment-analyst-name {
+    padding-left: 15px;
+    font-weight: bold;
+}
+
+.comment-comment {
+    padding: 5px;
+    padding-left: 10px;
+}
+
 .tab-pills {
     margin-bottom: 5px;
 }
@@ -360,46 +391,20 @@ a#avatar-dropdown {
     display: inline;
 }
 
-.twitter-typeahead {
-  width: 100%;
+.flexdatalist-results span:not(:first-child):not(.highlight) {
+    padding-left: 10px;
+    display: inline-block;
+    font-size: 80%;
+    color: rgba(0, 0, 0, 0.50);
 }
 
-.twitter-typeahead, .tt-hint, .tt-input, .tt-menu { width: 100%; }
-
-.tt-menu {
-    border-radius: 5px;
-    border: 1px solid #666666;
-    background-color: white;
+.comment-form label {
+    font-weight: bold;
+    margin-top: 13px;
 }
 
-.tt-cursor {
-    background-color: #23CCEF;
-    color: white;
-}
-
-.modules-empty {
-    color: black;
-    background-color: white;
-    border-radius: 5px;
-    padding: 5px;
-}
-
-.modules-result {
-    color: black;
-    padding: 5px;
-    border-bottom: 1px dashed #DDDDDD;
-    border-radius: 5px;
-}
-
-.modules-result:last-child {
-    border-bottom: 0;
-}
-
-.modules-result p {
-    text-transform: none !important;
-    font-style: italic;
-    color: #666666;
-    font-size: 12px !important;
+.comment-form .form-group {
+    margin-bottom: 5px;
 }
 
 .admin-form label {
@@ -431,6 +436,10 @@ a#avatar-dropdown {
 
 textarea.form-control {
     height: 300px;
+}
+
+textarea.form-control.small-text {
+    height: 80px;
 }
 
 tr.user-disabled {

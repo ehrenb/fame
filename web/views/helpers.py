@@ -6,7 +6,8 @@ from werkzeug.exceptions import Forbidden
 from functools import wraps
 from os.path import basename
 
-
+from fame.core.store import store
+from fame.core.config import Config
 from fame.common.utils import is_iterable
 
 
@@ -44,6 +45,16 @@ def clean_analyses(analyses):
     analyses = clean_objects(analyses, {'see_logs': ['logs']})
 
     return analyses
+
+
+def enrich_comments(obj):
+    if 'comments' in obj:
+        for comment in obj['comments']:
+            if 'analyst' in comment:
+                analyst = store.users.find_one({'_id': comment['analyst']})
+                comment['analyst'] = clean_users(analyst)
+
+    return obj
 
 
 def clean_files(files):
@@ -84,7 +95,7 @@ def file_download(filepath):
     with open(filepath, 'rb') as fd:
         response = make_response(fd.read())
 
-    response.headers["Content-Disposition"] = u"attachment; filename='{0}'".format(basename(filepath)).encode('latin-1', errors='ignore')
+    response.headers["Content-Disposition"] = u"attachment; filename={0}".format(basename(filepath)).encode('latin-1', errors='ignore')
 
     return response
 
@@ -137,3 +148,14 @@ def prevent_csrf(func):
         return func(*args, **kwargs)
 
     return inner
+
+
+def comments_enabled():
+    # Determine if comments are enabled
+    config = Config.get(name="comments")
+    comments_enabled = False
+
+    if config:
+        comments_enabled = config.get_values()['enable']
+
+    return comments_enabled

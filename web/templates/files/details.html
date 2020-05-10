@@ -1,3 +1,7 @@
+{% if file.probable_names %}
+    <h4 class="probable-names">Probable Name(s): {{file.probable_names|join(', ')}}</h4>
+{% endif %}
+
 <div class="row" id="file-details">
     <div class="col-md-12">
         <div class="card">
@@ -76,23 +80,25 @@
 
                 <div class="footer">
                     <br />
-                    {% if file.type != 'url' %}
                     <hr>
                     <div class="stats">
                         <ul>
-                            <li><a href="{{ url_for('FilesView:download', id=file._id) }}"><i class="pe-7s-cloud-download"></i> Download</a></li>
                             {% if request.endpoint == 'AnalysesView:get' %}
                                 <li><a href="{{ url_for('FilesView:get', id=file._id)}}"><i class="pe-7s-note2"></i> All analyses</a></li>
                             {% endif %}
+                            {% if file.type != 'url' and file.type != 'hash' %}
 
-                            {% for module in av_modules %}
+                                <li><a href="{{ url_for('FilesView:download', id=file._id) }}"><i class="pe-7s-cloud-download"></i> Download</a></li>
+
+                                {% for module in av_modules %}
                                 <li id="av-sent-{{module}}" {% if not file.antivirus[module] %}class="hidden"{% endif %} {% if file.antivirus[module] is string %}data-toggle="tooltip" data-placement="top" title="{{file.antivirus[module]}}"{% endif %}>
                                     <i class="fa fa-check text-success"></i> {{module}}
                                 </li>
                                 <li id="av-sendto-{{module}}" {% if file.antivirus[module] %}class="hidden"{% endif %}>
                                     <a class="av-submission-link" href="{{ url_for('FilesView:submit_to_av', id=file._id, module=module) }}" data-module="{{module}}"><i class="fa fa-send"></i> Send to {{module}}</a>
                                 </li>
-                            {% endfor %}
+                                {% endfor %}
+                            {% endif %}
 
                             <script src="{{ url_for('static', filename='js/fame-file.js') }}"></script>
                             <script>
@@ -100,9 +106,84 @@
                             </script>
                         </ul>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
+
+        {% if comments_enabled %}
+        <div class="card">
+            <div class="header">
+                <h4 class="title">Comments</h4>
+            </div>
+            <div class="content row comments">
+                {% for comment in file.comments %}
+                    <div class="col-md-2 list-avatar avatar text-center">
+                        {% if comment.analyst %}
+                            <img class="img-circle" src="{{comment.analyst._id|avatar}}" />
+                            <span class="comment-analyst-name">{{comment.analyst.name}}</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-8 comment-comment">
+                        <pre class="initial">{{comment.comment}}</pre>
+
+                        {% if comment.probable_name %}
+                            <span class="comment-info">Probable Name was set to {{comment.probable_name}}.</span>
+                        {% endif %}
+                        {% if comment.analysis %}
+                            <span class="comment-info">Comment submitted on <a href="{{ url_for('AnalysesView:get', id=comment.analysis) }}">this analysis</a>.</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        {{comment.date|date}}
+                    </div>
+
+                    <div class="col-md-12"><hr /></div>
+                {% endfor %}
+
+                <div class="content comment-form">
+                    <form class="form-horizontal" method="post" action="{{url_for('FilesView:add_comment', id=file._id)}}">
+
+                        {% if analysis %}
+                            <input type="hidden" name="analysis" value="{{analysis._id}}" />
+                        {% endif %}
+
+                        {% if current_user.has_permission('add_probable_name') %}
+                            <div class="form-group">
+                                <label for="probable_name" class="col-sm-2 control-label">Probable Name</label>
+                                <div class="col-sm-8">
+                                    <input type="text" class="form-control" name="probable_name" value="" placeholder="Malware family name, optional">
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="form-group">
+                            <label for="comment" class="col-sm-2 control-label">Comment</label>
+                            <div class="col-sm-8">
+                                <textarea type="text" class="form-control small-text" name="comment" placeholder="Comment" required></textarea>
+                            </div>
+                        </div>
+			<div class="form-group text-center">
+			  <label class="checkbox checkbox-inline" style="padding-top:2px">
+			    <input type="checkbox" name="notify" unchecked data-toggle="checkbox">Notify
+			  </label>
+			  <a class="help" tabindex="0" role="button" data-toggle="popover" data-trigger="focus" title="Notify"
+			     data-html="true" data-content="When enabled, analyst will be notified by mail about the new comment."
+			     data-placement="top">
+			    <i class="glyphicon glyphicon-question-sign"></i>
+			  </a>
+			</div>
+			<script>
+			  $(function () {
+			  $('[data-toggle="popover"]').popover()
+			  })
+			</script>
+                        <div class="form-group text-center">
+                          <button type="submit" class="btn btn-info btn-fill">Add Comment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
